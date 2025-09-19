@@ -372,7 +372,18 @@ local SaveManager = {} do
 				Title = "Interface",
 				Content = "Config loader",
 				SubContent = string.format("Set %q to auto load", name),
-				Duration = 7
+				Duration = 4
+			})
+		end})
+
+		local RemoveAutoloadButton
+		RemoveAutoloadButton = section:AddButton({Title = "Remove autoload", Callback = function()
+			writefile(`{self.Folder}/settings/autoload.txt`, "")
+			self.Library:Notify({
+				Title = "Interface",
+				Content = "Config loader",
+				SubContent = string.format("Removed auto load"),
+				Duration = 4
 			})
 		end})
 
