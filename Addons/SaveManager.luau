@@ -379,7 +379,7 @@ local SaveManager = {} do
 		local RemoveAutoloadButton
 		RemoveAutoloadButton = section:AddButton({Title = "Remove autoload", Callback = function()
 			writefile(`{self.Folder}/settings/autoload.txt`, "")
-			AutoloadButton:SetDesc("Current autoload config: none")
+			AutoloadButton:SetDesc("Current autoload config:")
 			self.Library:Notify({
 				Title = "Interface",
 				Content = "Config loader",
