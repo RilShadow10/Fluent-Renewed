@@ -1,6 +1,5 @@
 local httpService = game:GetService("HttpService")
 
-
 type Dropdown = {Value: any, Values: {i: any}, Multi: boolean, Displayer: (v) -> (n)?, SetValue: (any) -> ()}
 
 local DisplayerParser = {
@@ -51,6 +50,9 @@ local SaveManager = {} do
 	SaveManager.Folder = "FluentSettings"
 	SaveManager.Ignore = {}
 	SaveManager.Options, SaveManager.Library = {} :: { [string]: {Type: string, Value: any, SetValues: (self: any, NewValue: { [any]: any }) -> nil, SetValue: (self: any, NewValue: any, ...any) -> nil, SetValueRGB: (self: any, NewValue: Color3, Transparency: number?) -> nil} }, {}
+	SaveManager.AutoSaveEnabled = false
+	SaveManager.AutoSaveInterval = 30 -- Seconds between autosaves
+	SaveManager.AutoSaveConfigName = "autosave"
 	SaveManager.Parser = {
 		Toggle = {
 			Save = function(idx, object) 
@@ -113,7 +115,6 @@ local SaveManager = {} do
 				end
 			end,
 		},
-
 		Input = {
 			Save = function(idx, object)
 				return { type = "Input", idx = idx, text = object.Value, Timestamp = object.Instance.CreatedAt }
@@ -270,6 +271,52 @@ local SaveManager = {} do
 		return nil
 	end
 
+	function SaveManager:StartAutoSave()
+		if not self.AutoSaveEnabled then return end
+		task.spawn(function()
+			while self.AutoSaveEnabled and task.wait(self.AutoSaveInterval) do
+				local success, err = self:Save(self.AutoSaveConfigName)
+				if not success then
+					self.Library:Notify({
+						Title = "Interface",
+						Content = "Autosave",
+						SubContent = `Failed to autosave: {err}`,
+						Duration = 7
+					})
+				else
+					self.Library:Notify({
+						Title = "Interface",
+						Content = "Autosave",
+						SubContent = "Settings autosaved",
+						Duration = 3
+					})
+				end
+			end
+		end)
+	end
+
+	function SaveManager:LoadAutoSaveConfig()
+		local file = `{self.Folder}/settings/{self.AutoSaveConfigName}.json`
+		if isfile(file) then
+			local success, err = self:Load(self.AutoSaveConfigName)
+			if not success then
+				self.Library:Notify({
+					Title = "Interface",
+					Content = "Autosave",
+					SubContent = `Failed to load autosaved config: {err}`,
+					Duration = 7
+				})
+			else
+				self.Library:Notify({
+					Title = "Interface",
+					Content = "Autosave",
+					SubContent = "Loaded autosaved settings",
+					Duration = 3
+				})
+			end
+		end
+	end
+
 	function SaveManager:BuildConfigSection(tab)
 		assert(self.Library, "Must set SaveManager.Library")
 
@@ -277,6 +324,18 @@ local SaveManager = {} do
 
 		section:AddInput("SaveManager_ConfigName",    { Title = "Config name" })
 		section:AddDropdown("SaveManager_ConfigList", { Title = "Config list", Values = self:RefreshConfigList(), AllowNull = true })
+
+		section:AddToggle("SaveManager_AutoSaveToggle", {
+			Title = "Enable Autosave",
+			Description = "Automatically save settings every " .. self.AutoSaveInterval .. " seconds",
+			Default = false,
+			Callback = function(value)
+				self.AutoSaveEnabled = value
+				if value then
+					self:StartAutoSave()
+				end
+			end
+		})
 
 		section:AddButton({
 			Title = "Create config",
@@ -376,12 +435,27 @@ local SaveManager = {} do
 			})
 		end})
 
+        local RemoveAutoloadButton
+		RemoveAutoloadButton = section:AddButton({Title = "Remove autoload", Callback = function()
+			delfile(`{self.Folder}/settings/autoload.txt`)
+			AutoloadButton:SetDesc("Current autoload config:")
+			self.Library:Notify({
+				Title = "Interface",
+				Content = "Config loader",
+				SubContent = string.format("Removed auto load"),
+				Duration = 4
+			})
+		end})
+
 		if isfile(`{self.Folder}/settings/autoload.txt`) then
 			local name = readfile(`{self.Folder}/settings/autoload.txt`)
 			AutoloadButton:SetDesc("Current autoload config: " .. name)
 		end
 
-		SaveManager:SetIgnoreIndexes({ "SaveManager_ConfigList", "SaveManager_ConfigName" })
+		SaveManager:SetIgnoreIndexes({ "SaveManager_ConfigList", "SaveManager_ConfigName", "SaveManager_AutoSaveToggle" })
+
+		-- Load autosaved config on script execution
+		self:LoadAutoSaveConfig()
 	end
 
 	SaveManager:BuildFolderTree()
