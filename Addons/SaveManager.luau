@@ -1,6 +1,5 @@
 local httpService = game:GetService("HttpService")
 
-
 type Dropdown = {Value: any, Values: {i: any}, Multi: boolean, Displayer: (v) -> (n)?, SetValue: (any) -> ()}
 
 local DisplayerParser = {
@@ -50,7 +49,12 @@ end
 local SaveManager = {} do
 	SaveManager.Folder = "FluentSettings"
 	SaveManager.Ignore = {}
-	SaveManager.Options, SaveManager.Library = {} :: { [string]: {Type: string, Value: any, SetValues: (self: any, NewValue: { [any]: any }) -> nil, SetValue: (self: any, NewValue: any, ...any) -> nil, SetValueRGB: (self: any, NewValue: Color3, Transparency: number?) -> nil} }, {}
+	SaveManager.Options, SaveManager.Library = {}, {}
+	SaveManager.AutoSaveEnabled = false
+	SaveManager.AutoSaveConfigName = "autosave"
+	SaveManager.LastSave = 0
+	SaveManager.HookedElements = {} -- Track hooked elements to avoid duplicates
+	SaveManager.ElementFirstChange = {}
 	SaveManager.Parser = {
 		Toggle = {
 			Save = function(idx, object) 
@@ -113,7 +117,6 @@ local SaveManager = {} do
 				end
 			end,
 		},
-
 		Input = {
 			Save = function(idx, object)
 				return { type = "Input", idx = idx, text = object.Value, Timestamp = object.Instance.CreatedAt }
@@ -161,10 +164,14 @@ local SaveManager = {} do
 
 		local success, encoded = pcall(httpService.JSONEncode, httpService, data)
 		if not success then
-			return false, "Failed to JSON-Encode data"
+			return false, "Failed to JSON-Encode data: " .. tostring(encoded)
 		end
 
-		writefile(fullPath, encoded)
+		local success, err = pcall(writefile, fullPath, encoded)
+		if not success then
+			return false, "Failed to write file: " .. (err or "unknown error")
+		end
+		print("Saved to:", fullPath)
 		return true
 	end
 
@@ -177,7 +184,7 @@ local SaveManager = {} do
 		if not isfile(file) then return false, "invalid file" end
 
 		local success, decoded = pcall(httpService.JSONDecode, httpService, readfile(file))
-		if not success then return false, "decode error" end
+		if not success then return false, "decode error: " .. tostring(decoded) end
 
 		for _, option in next, decoded.objects do
 			if self.Parser[option.type] then
@@ -206,12 +213,13 @@ local SaveManager = {} do
 			local str = paths[i]
 			if not isfolder(str) then
 				makefolder(str)
+				print("Created folder:", str)
 			end
 		end
 	end
 
 	function SaveManager:RefreshConfigList()
-		local list = listfiles(`{self.Folder}/settings`)
+		local list = listfiles(`{self.Folder}/settings`) or {}
 
 		local out = {}
 		for i = 1, #list do
@@ -243,6 +251,7 @@ local SaveManager = {} do
 	function SaveManager:SetLibrary(library)
 		self.Library = library
 		self.Options = library.Options
+		self:WrapUIElements()
 	end
 
 	function SaveManager:LoadAutoloadConfig()
@@ -270,13 +279,98 @@ local SaveManager = {} do
 		return nil
 	end
 
+	function SaveManager:LoadAutoSaveConfig()
+		local file = `{self.Folder}/settings/{self.AutoSaveConfigName}.json`
+		if isfile(file) then
+			local success, err = self:Load(self.AutoSaveConfigName)
+			if not success then
+				self.Library:Notify({
+					Title = "Interface",
+					Content = "Autosave",
+					SubContent = `Failed to load autosaved config: {err}`,
+					Duration = 7
+				})
+			else
+				self.Library:Notify({
+					Title = "Interface",
+					Content = "Autosave",
+					SubContent = "Loaded autosaved settings",
+					Duration = 3
+				})
+			end
+		end
+	end
+
+	function SaveManager:AutoSave()
+		local success, err = self:Save(self.AutoSaveConfigName)
+	end
+
+	function SaveManager:WrapUIElements()
+		-- Function to hook OnChanged for a single element
+		local function HookElement(id, element)
+			if SaveManager.HookedElements[id] then
+				return -- Already hooked
+			end
+			if element.OnChanged then
+				SaveManager.HookedElements[id] = true
+				SaveManager.ElementFirstChange[id] = true
+				element:OnChanged(function(value)
+					if SaveManager.ElementFirstChange[id] then
+						SaveManager.ElementFirstChange[id] = false
+						return
+					end
+					-- Use 'value' for Toggle/Slider/Dropdown, element.Value for others
+					local displayValue = value or element.Value
+					SaveManager:AutoSave()
+				end)
+			end
+		end
+
+		-- Initial hook for existing elements
+		for id, element in self.Options do
+			HookElement(id, element)
+		end
+
+		-- Monitor for new elements (polling approach)
+		--[[
+		task.spawn(function()
+			local lastCount = 0
+			while true do
+				local currentCount = 0
+				for id, element in self.Options do
+					currentCount += 1
+					if not SaveManager.HookedElements[id] then
+						HookElement(id, element)
+					end
+				end
+				if currentCount ~= lastCount then
+					print("Detected", currentCount, "elements in Library.Options")
+					lastCount = currentCount
+				end
+				task.wait(0.1) -- Poll every 0.1 seconds
+			end
+		end)
+		]]
+		SaveManager:AutoSave()
+	end
+
 	function SaveManager:BuildConfigSection(tab)
 		assert(self.Library, "Must set SaveManager.Library")
 
 		local section = tab:AddSection("Configuration")
 
-		section:AddInput("SaveManager_ConfigName",    { Title = "Config name" })
+		section:AddInput("SaveManager_ConfigName", { Title = "Config name" })
 		section:AddDropdown("SaveManager_ConfigList", { Title = "Config list", Values = self:RefreshConfigList(), AllowNull = true })
+
+		section:AddToggle("SaveManager_AutoSaveToggle", {
+			Title = "Enable Autosave",
+			Description = "Automatically save settings when changed",
+			Default = false,
+			Callback = function(value)
+				self.AutoSaveEnabled = value
+				SaveManager:AutoSave()
+			end
+		})
 
 		section:AddButton({
 			Title = "Create config",
@@ -366,13 +460,21 @@ local SaveManager = {} do
 		local AutoloadButton
 		AutoloadButton = section:AddButton({Title = "Set as autoload", Description = "Current autoload config: none", Callback = function()
 			local name = SaveManager.Options.SaveManager_ConfigList.Value
-			writefile(`{self.Folder}/settings/autoload.txt`, name)
+			local success, err = pcall(writefile, `{self.Folder}/settings/autoload.txt`, name)
+			if not success then
+				return self.Library:Notify({
+					Title = "Interface",
+					Content = "Config loader",
+					SubContent = "Failed to set autoload: " .. (err or "unknown error"),
+					Duration = 7
+				})
+			end
 			AutoloadButton:SetDesc("Current autoload config: " .. name)
 			self.Library:Notify({
 				Title = "Interface",
 				Content = "Config loader",
 				SubContent = string.format("Set %q to auto load", name),
-				Duration = 4
+				Duration = 7
 			})
 		end})
 
@@ -393,7 +495,10 @@ local SaveManager = {} do
 			AutoloadButton:SetDesc("Current autoload config: " .. name)
 		end
 
-		SaveManager:SetIgnoreIndexes({ "SaveManager_ConfigList", "SaveManager_ConfigName" })
+		SaveManager:SetIgnoreIndexes({ "SaveManager_ConfigList", "SaveManager_ConfigName", "SaveManager_AutoSaveToggle" })
+
+		-- Load autosaved config on script execution
+		self:LoadAutoSaveConfig()
 	end
 
 	SaveManager:BuildFolderTree()
