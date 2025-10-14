@@ -365,15 +365,15 @@ local SaveManager = {} do
 		section:AddInput("SaveManager_ConfigName", { Title = "Config name" })
 		section:AddDropdown("SaveManager_ConfigList", { Title = "Config list", Values = self:RefreshConfigList(), AllowNull = true })
 
-		section:AddToggle("SaveManager_AutoSaveToggle", {
-			Title = "Enable Autosave",
-			Description = "Automatically save settings when changed",
-			Default = false,
-			Callback = function(value)
-				self.AutoSaveEnabled = value
-				--SaveManager:AutoSave()
-			end
-		})
+		-- section:AddToggle("SaveManager_AutoSaveToggle", {
+		-- 	Title = "Enable Autosave",
+		-- 	Description = "Automatically save settings when changed",
+		-- 	Default = false,
+		-- 	Callback = function(value)
+		-- 		self.AutoSaveEnabled = value
+		-- 		--SaveManager:AutoSave()
+		-- 	end
+		-- })
 
 		section:AddButton({
 			Title = "Create config",
@@ -484,6 +484,7 @@ local SaveManager = {} do
 		local RemoveAutoloadButton
 		RemoveAutoloadButton = section:AddButton({Title = "Remove autoload", Callback = function()
 			delfile(`{self.Folder}/settings/autoload.txt`)
+    		self:WrapUIElements()
 			AutoloadButton:SetDesc("Current autoload config:")
 			self.Library:Notify({
 				Title = "Interface",
