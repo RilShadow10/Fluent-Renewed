@@ -49,7 +49,7 @@ end
 local SaveManager = {} do
 	SaveManager.Folder = "FluentSettings"
 	SaveManager.Ignore = {}
-	SaveManager.Options, SaveManager.Library = {} :: { [string]: {Type: string, Value: any, SetValues: (self: any, NewValue: { [any]: any }) -> nil, SetValue: (self: any, NewValue: any, ...any) -> nil, SetValueRGB: (self: any, NewValue: Color3, Transparency: number?) -> nil} }, {}
+	SaveManager.Options, SaveManager.Library = {}, {}
 	SaveManager.AutoSaveEnabled = false
 	SaveManager.AutoSaveConfigName = "autosave"
 	SaveManager.LastSave = 0
@@ -165,7 +165,10 @@ local SaveManager = {} do
 			return false, "Failed to JSON-Encode data"
 		end
 
-		writefile(fullPath, encoded)
+		local success, err = pcall(writefile, fullPath, encoded)
+		if not success then
+			return false, "Failed to write file: " .. (err or "unknown error")
+		end
 		print("Saved to:", fullPath)
 		return true
 	end
@@ -214,7 +217,7 @@ local SaveManager = {} do
 	end
 
 	function SaveManager:RefreshConfigList()
-		local list = listfiles(`{self.Folder}/settings`)
+		local list = listfiles(`{self.Folder}/settings`) or {}
 
 		local out = {}
 		for i = 1, #list do
@@ -249,7 +252,7 @@ local SaveManager = {} do
 		self.Options = library.Options
 		self:WrapUIElements()
 		for idx, opt in self.Options do
-			print("Option registered:", idx, "Type:", opt.Type, "Value:", opt.Value)
+			print("Option registered:", idx, "Type:", opt.Type, "Value:", tostring(opt.Value))
 		end
 	end
 
@@ -329,85 +332,97 @@ local SaveManager = {} do
 
 	function SaveManager:WrapUIElements()
 		print("Wrapping UI elements for Fluent Renewed")
-		local OriginalCreateToggle = self.Library.CreateToggle
-		local OriginalCreateSlider = self.Library.CreateSlider
-		local OriginalCreateDropdown = self.Library.CreateDropdown
-		local OriginalCreateColorpicker = self.Library.CreateColorpicker
-		local OriginalCreateKeybind = self.Library.CreateKeybind
-		local OriginalCreateInput = self.Library.CreateInput
+		local OriginalCreateWindow = self.Library.CreateWindow
 
-		self.Library.CreateToggle = function(tab, id, options)
-			local element = OriginalCreateToggle(tab, id, options)
-			-- Call original Callback if provided in options
-			if options and options.Callback then
-				options.Callback(element.Value)
-			end
-			-- Attach OnChanged listener for future changes
-			element:OnChanged(function(value)
-				print("Toggle changed (ID:", id, "):", value)
-				SaveManager:AutoSave()
-			end)
-			return element
-		end
+		self.Library.CreateWindow = function(...)
+			local window = OriginalCreateWindow(...)
+			local OriginalCreateTab = window.CreateTab
 
-		self.Library.CreateSlider = function(tab, id, options)
-			local element = OriginalCreateSlider(tab, id, options)
-			if options and options.Callback then
-				options.Callback(element.Value)
-			end
-			element:OnChanged(function(value)
-				print("Slider changed (ID:", id, "):", value)
-				SaveManager:AutoSave()
-			end)
-			return element
-		end
+			window.CreateTab = function(...)
+				local tab = OriginalCreateTab(...)
+				local OriginalCreateToggle = tab.CreateToggle
+				local OriginalCreateSlider = tab.CreateSlider
+				local OriginalCreateDropdown = tab.CreateDropdown
+				local OriginalCreateColorpicker = tab.CreateColorpicker
+				local OriginalCreateKeybind = tab.CreateKeybind
+				local OriginalCreateInput = tab.CreateInput
 
-		self.Library.CreateDropdown = function(tab, id, options)
-			local element = OriginalCreateDropdown(tab, id, options)
-			if options and options.Callback then
-				options.Callback(element.Value)
-			end
-			element:OnChanged(function(value)
-				print("Dropdown changed (ID:", id, "):", value)
-				SaveManager:AutoSave()
-			end)
-			return element
-		end
+				tab.CreateToggle = function(id, options)
+					local element = OriginalCreateToggle(id, options)
+					if options.Callback then
+						task.spawn(options.Callback, element.Value)
+					end
+					element:OnChanged(function(value)
+						print("Toggle changed (ID:", id, "):", tostring(value))
+						SaveManager:AutoSave()
+					end)
+					return element
+				end
 
-		self.Library.CreateColorpicker = function(tab, id, options)
-			local element = OriginalCreateColorpicker(tab, id, options)
-			if options and options.Callback then
-				options.Callback(element.Value, element.Transparency)
-			end
-			element:OnChanged(function()
-				print("Colorpicker changed (ID:", id, "):", element.Value, element.Transparency)
-				SaveManager:AutoSave()
-			end)
-			return element
-		end
+				tab.CreateSlider = function(id, options)
+					local element = OriginalCreateSlider(id, options)
+					if options.Callback then
+						task.spawn(options.Callback, element.Value)
+					end
+					element:OnChanged(function(value)
+						print("Slider changed (ID:", id, "):", tostring(value))
+						SaveManager:AutoSave()
+					end)
+					return element
+				end
 
-		self.Library.CreateKeybind = function(tab, id, options)
-			local element = OriginalCreateKeybind(tab, id, options)
-			if options and options.Callback then
-				options.Callback(element.Value)
-			end
-			element:OnChanged(function()
-				print("Keybind changed (ID:", id, "):", element.Value)
-				SaveManager:AutoSave()
-			end)
-			return element
-		end
+				tab.CreateDropdown = function(id, options)
+					local element = OriginalCreateDropdown(id, options)
+					if options.Callback then
+						task.spawn(options.Callback, element.Value)
+					end
+					element:OnChanged(function(value)
+						print("Dropdown changed (ID:", id, "):", tostring(value))
+						SaveManager:AutoSave()
+					end)
+					return element
+				end
 
-		self.Library.CreateInput = function(tab, id, options)
-			local element = OriginalCreateInput(tab, id, options)
-			if options and options.Callback then
-				options.Callback(element.Value)
+				tab.CreateColorpicker = function(id, options)
+					local element = OriginalCreateColorpicker(id, options)
+					if options.Callback then
+						task.spawn(options.Callback, element.Value, element.Transparency)
+					end
+					element:OnChanged(function()
+						print("Colorpicker changed (ID:", id, "):", tostring(element.Value), element.Transparency)
+						SaveManager:AutoSave()
+					end)
+					return element
+				end
+
+				tab.CreateKeybind = function(id, options)
+					local element = OriginalCreateKeybind(id, options)
+					if options.Callback then
+						task.spawn(options.Callback, element.Value)
+					end
+					element:OnChanged(function()
+						print("Keybind changed (ID:", id, "):", tostring(element.Value))
+						SaveManager:AutoSave()
+					end)
+					return element
+				end
+
+				tab.CreateInput = function(id, options)
+					local element = OriginalCreateInput(id, options)
+					if options.Callback then
+						task.spawn(options.Callback, element.Value)
+					end
+					element:OnChanged(function()
+						print("Input changed (ID:", id, "):", tostring(element.Value))
+						SaveManager:AutoSave()
+					end)
+					return element
+				end
+
+				return tab
 			end
-			element:OnChanged(function()
-				print("Input changed (ID:", id, "):", element.Value)
-				SaveManager:AutoSave()
-			end)
-			return element
+
+			return window
 		end
 	end
 
@@ -530,7 +545,15 @@ local SaveManager = {} do
 		local AutoloadButton
 		AutoloadButton = section:AddButton({Title = "Set as autoload", Description = "Current autoload config: none", Callback = function()
 			local name = SaveManager.Options.SaveManager_ConfigList.Value
-			writefile(`{self.Folder}/settings/autoload.txt`, name)
+			local success, err = pcall(writefile, `{self.Folder}/settings/autoload.txt`, name)
+			if not success then
+				return self.Library:Notify({
+					Title = "Interface",
+					Content = "Config loader",
+					SubContent = "Failed to set autoload: " .. (err or "unknown error"),
+					Duration = 7
+				})
+			end
 			AutoloadButton:SetDesc("Current autoload config: " .. name)
 			self.Library:Notify({
 				Title = "Interface",
