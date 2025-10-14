@@ -310,14 +310,18 @@ local SaveManager = {} do
 			if SaveManager.HookedElements[id] then
 				return -- Already hooked
 			end
+			-- if element.Type == "ButtonLabel" then
+			-- 	print("Skipped hooking ButtonLabel:", id)
+			-- 	return
+			-- end
 			if element.OnChanged then
 				SaveManager.HookedElements[id] = true
 				SaveManager.ElementFirstChange[id] = true
 				element:OnChanged(function(value)
-					if SaveManager.ElementFirstChange[id] then
-						SaveManager.ElementFirstChange[id] = false
-						return
-					end
+					-- if SaveManager.ElementFirstChange[id] then
+					-- 	SaveManager.ElementFirstChange[id] = false
+					-- 	return
+					-- end
 					-- Use 'value' for Toggle/Slider/Dropdown, element.Value for others
 					local displayValue = value or element.Value
 					SaveManager:AutoSave()
