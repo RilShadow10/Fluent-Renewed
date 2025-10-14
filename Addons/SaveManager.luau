@@ -317,6 +317,7 @@ local SaveManager = {} do
 				element:OnChanged(function(value)
 					if SaveManager.ElementFirstChange[id] then
 						SaveManager.ElementFirstChange[id] = false
+						print("Ignored initial OnChanged for:", id, "Type:", element.Type, "Value:", tostring(value or element.Value))
 						return
 					end
 					-- Use 'value' for Toggle/Slider/Dropdown, element.Value for others
