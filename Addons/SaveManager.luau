@@ -54,6 +54,7 @@ local SaveManager = {} do
 	SaveManager.AutoSaveConfigName = "autosave"
 	SaveManager.LastSave = 0
 	SaveManager.HookedElements = {} -- Track hooked elements to avoid duplicates
+	SaveManager.ElementFirstChange = {}
 	SaveManager.Parser = {
 		Toggle = {
 			Save = function(idx, object) 
@@ -312,10 +313,10 @@ local SaveManager = {} do
 			end
 			if element.OnChanged then
 				SaveManager.HookedElements[id] = true
-				SaveManager.ElementFirstChange[id] = 1
+				SaveManager.ElementFirstChange[id] = true
 				element:OnChanged(function(value)
-					if SaveManager.ElementFirstChange[id] == 1 then
-						SaveManager.ElementFirstChange[id] = 2
+					if SaveManager.ElementFirstChange[id] then
+						SaveManager.ElementFirstChange[id] = false
 						return
 					end
 					-- Use 'value' for Toggle/Slider/Dropdown, element.Value for others
