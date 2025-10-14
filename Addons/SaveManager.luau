@@ -305,30 +305,7 @@ local SaveManager = {} do
 	end
 
 	function SaveManager:AutoSave()
-		if not self.AutoSaveEnabled or (self.LastSave and tick() - self.LastSave < 1) then 
-			print("Autosave skipped: Disabled or debounced")
-			return 
-		end
-		self.LastSave = tick()
-		print("Attempting autosave...")
 		local success, err = self:Save(self.AutoSaveConfigName)
-		if not success then
-			print("Autosave failed:", err)
-			self.Library:Notify({
-				Title = "Interface",
-				Content = "Autosave",
-				SubContent = `Failed to autosave: {err}`,
-				Duration = 7
-			})
-		else
-			print("Autosave successful, saved to:", `{self.Folder}/settings/{self.AutoSaveConfigName}.json`)
-			self.Library:Notify({
-				Title = "Interface",
-				Content = "Autosave",
-				SubContent = "Settings autosaved",
-				Duration = 3
-			})
-		end
 	end
 
 	function SaveManager:WrapUIElements()
@@ -343,7 +320,6 @@ local SaveManager = {} do
 				element:OnChanged(function(value)
 					-- Use 'value' for Toggle/Slider/Dropdown, element.Value for others
 					local displayValue = value or element.Value
-					print("Element changed (ID:", id, "Type:", element.Type, "):", tostring(displayValue))
 					SaveManager:AutoSave()
 				end)
 				print("Hooked OnChanged for element:", id, "Type:", element.Type)
@@ -358,6 +334,7 @@ local SaveManager = {} do
 		end
 
 		-- Monitor for new elements (polling approach)
+		--[[
 		task.spawn(function()
 			local lastCount = 0
 			while true do
@@ -375,6 +352,7 @@ local SaveManager = {} do
 				task.wait(0.1) -- Poll every 0.1 seconds
 			end
 		end)
+		]]
 	end
 
 	function SaveManager:BuildConfigSection(tab)
