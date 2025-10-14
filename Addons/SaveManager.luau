@@ -325,6 +325,7 @@ local SaveManager = {} do
 			local originalCallback = options.Callback or function() end
 			options.Callback = function(value)
 				originalCallback(value)
+				print("yes")
 				SaveManager:AutoSave()
 			end
 			return OriginalAddToggle(tab, options)
@@ -334,6 +335,7 @@ local SaveManager = {} do
 			local originalCallback = options.Callback or function() end
 			options.Callback = function(value)
 				originalCallback(value)
+				print("yes")
 				SaveManager:AutoSave()
 			end
 			return OriginalAddSlider(tab, options)
@@ -343,6 +345,7 @@ local SaveManager = {} do
 			local originalCallback = options.Callback or function() end
 			options.Callback = function(value)
 				originalCallback(value)
+				print("yes")
 				SaveManager:AutoSave()
 			end
 			return OriginalAddDropdown(tab, options)
@@ -352,6 +355,7 @@ local SaveManager = {} do
 			local originalCallback = options.Callback or function() end
 			options.Callback = function(value, transparency)
 				originalCallback(value, transparency)
+				print("yes")
 				SaveManager:AutoSave()
 			end
 			return OriginalAddColorpicker(tab, options)
@@ -361,6 +365,7 @@ local SaveManager = {} do
 			local originalCallback = options.Callback or function() end
 			options.Callback = function(key, mode)
 				originalCallback(key, mode)
+				print("yes")
 				SaveManager:AutoSave()
 			end
 			return OriginalAddKeybind(tab, options)
@@ -370,6 +375,7 @@ local SaveManager = {} do
 			local originalCallback = options.Callback or function() end
 			options.Callback = function(text)
 				originalCallback(text)
+				print("yes")
 				SaveManager:AutoSave()
 			end
 			return OriginalAddInput(tab, options)
