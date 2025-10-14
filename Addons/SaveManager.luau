@@ -166,6 +166,7 @@ local SaveManager = {} do
 		end
 
 		writefile(fullPath, encoded)
+		print("Saved to:", fullPath)
 		return true
 	end
 
@@ -207,6 +208,7 @@ local SaveManager = {} do
 			local str = paths[i]
 			if not isfolder(str) then
 				makefolder(str)
+				print("Created folder:", str)
 			end
 		end
 	end
@@ -242,9 +244,13 @@ local SaveManager = {} do
 	end
 
 	function SaveManager:SetLibrary(library)
+		print("Setting library, wrapping UI elements")
 		self.Library = library
 		self.Options = library.Options
 		self:WrapUIElements()
+		for idx, opt in self.Options do
+			print("Option registered:", idx, "Type:", opt.Type, "Value:", opt.Value)
+		end
 	end
 
 	function SaveManager:LoadAutoloadConfig()
@@ -311,7 +317,7 @@ local SaveManager = {} do
 				Duration = 7
 			})
 		else
-			print("Autosave successful")
+			print("Autosave successful, saved to:", `{self.Folder}/settings/{self.AutoSaveConfigName}.json`)
 			self.Library:Notify({
 				Title = "Interface",
 				Content = "Autosave",
@@ -332,8 +338,10 @@ local SaveManager = {} do
 
 		self.Library.CreateToggle = function(tab, options)
 			local element = OriginalCreateToggle(tab, options)
+			local originalOnChanged = options.OnChanged or function() end
 			element:OnChanged(function(value)
 				print("Toggle changed:", options.Title, value)
+				originalOnChanged(value)
 				SaveManager:AutoSave()
 			end)
 			return element
@@ -341,7 +349,9 @@ local SaveManager = {} do
 
 		self.Library.CreateSlider = function(tab, options)
 			local element = OriginalCreateSlider(tab, options)
+			local originalOnChanged = options.OnChanged or function() end
 			element:OnChanged(function(value)
+				originalOnChanged(value)
 				print("Slider changed:", options.Title, value)
 				SaveManager:AutoSave()
 			end)
@@ -350,7 +360,9 @@ local SaveManager = {} do
 
 		self.Library.CreateDropdown = function(tab, options)
 			local element = OriginalCreateDropdown(tab, options)
+			local originalOnChanged = options.OnChanged or function() end
 			element:OnChanged(function(value)
+				originalOnChanged(value)
 				print("Dropdown changed:", options.Title, value)
 				SaveManager:AutoSave()
 			end)
@@ -359,7 +371,9 @@ local SaveManager = {} do
 
 		self.Library.CreateColorpicker = function(tab, options)
 			local element = OriginalCreateColorpicker(tab, options)
+			local originalOnChanged = options.OnChanged or function() end
 			element:OnChanged(function()
+				originalOnChanged(element.Value, element.Transparency)
 				print("Colorpicker changed:", options.Title, element.Value, element.Transparency)
 				SaveManager:AutoSave()
 			end)
@@ -368,7 +382,9 @@ local SaveManager = {} do
 
 		self.Library.CreateKeybind = function(tab, options)
 			local element = OriginalCreateKeybind(tab, options)
+			local originalOnChanged = options.OnChanged or function() end
 			element:OnChanged(function()
+				originalOnChanged(element.Value)
 				print("Keybind changed:", options.Title, element.Value)
 				SaveManager:AutoSave()
 			end)
@@ -377,7 +393,9 @@ local SaveManager = {} do
 
 		self.Library.CreateInput = function(tab, options)
 			local element = OriginalCreateInput(tab, options)
+			local originalOnChanged = options.OnChanged or function() end
 			element:OnChanged(function()
+				originalOnChanged(element.Value)
 				print("Input changed:", options.Title, element.Value)
 				SaveManager:AutoSave()
 			end)
@@ -400,6 +418,19 @@ local SaveManager = {} do
 			Callback = function(value)
 				self.AutoSaveEnabled = value
 				print("Autosave enabled:", value)
+			end
+		})
+
+		section:AddButton({
+			Title = "Test Manual Save",
+			Callback = function()
+				local success, err = SaveManager:Save("test_save")
+				print("Manual save:", success and "Success" or "Failed: " .. err)
+				SaveManager.Library:Notify({
+					Title = "Test",
+					Content = success and "Saved to test_save.json" or "Failed: " .. err,
+					Duration = 5
+				})
 			end
 		})
 
