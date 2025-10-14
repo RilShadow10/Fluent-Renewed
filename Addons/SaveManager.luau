@@ -336,67 +336,75 @@ local SaveManager = {} do
 		local OriginalCreateKeybind = self.Library.CreateKeybind
 		local OriginalCreateInput = self.Library.CreateInput
 
-		self.Library.CreateToggle = function(tab, options)
-			local element = OriginalCreateToggle(tab, options)
-			local originalOnChanged = options.OnChanged or function() end
+		self.Library.CreateToggle = function(tab, id, options)
+			local element = OriginalCreateToggle(tab, id, options)
+			-- Call original Callback if provided in options
+			if options and options.Callback then
+				options.Callback(element.Value)
+			end
+			-- Attach OnChanged listener for future changes
 			element:OnChanged(function(value)
-				print("Toggle changed:", options.Title, value)
-				originalOnChanged(value)
+				print("Toggle changed (ID:", id, "):", value)
 				SaveManager:AutoSave()
 			end)
 			return element
 		end
 
-		self.Library.CreateSlider = function(tab, options)
-			local element = OriginalCreateSlider(tab, options)
-			local originalOnChanged = options.OnChanged or function() end
+		self.Library.CreateSlider = function(tab, id, options)
+			local element = OriginalCreateSlider(tab, id, options)
+			if options and options.Callback then
+				options.Callback(element.Value)
+			end
 			element:OnChanged(function(value)
-				originalOnChanged(value)
-				print("Slider changed:", options.Title, value)
+				print("Slider changed (ID:", id, "):", value)
 				SaveManager:AutoSave()
 			end)
 			return element
 		end
 
-		self.Library.CreateDropdown = function(tab, options)
-			local element = OriginalCreateDropdown(tab, options)
-			local originalOnChanged = options.OnChanged or function() end
+		self.Library.CreateDropdown = function(tab, id, options)
+			local element = OriginalCreateDropdown(tab, id, options)
+			if options and options.Callback then
+				options.Callback(element.Value)
+			end
 			element:OnChanged(function(value)
-				originalOnChanged(value)
-				print("Dropdown changed:", options.Title, value)
+				print("Dropdown changed (ID:", id, "):", value)
 				SaveManager:AutoSave()
 			end)
 			return element
 		end
 
-		self.Library.CreateColorpicker = function(tab, options)
-			local element = OriginalCreateColorpicker(tab, options)
-			local originalOnChanged = options.OnChanged or function() end
+		self.Library.CreateColorpicker = function(tab, id, options)
+			local element = OriginalCreateColorpicker(tab, id, options)
+			if options and options.Callback then
+				options.Callback(element.Value, element.Transparency)
+			end
 			element:OnChanged(function()
-				originalOnChanged(element.Value, element.Transparency)
-				print("Colorpicker changed:", options.Title, element.Value, element.Transparency)
+				print("Colorpicker changed (ID:", id, "):", element.Value, element.Transparency)
 				SaveManager:AutoSave()
 			end)
 			return element
 		end
 
-		self.Library.CreateKeybind = function(tab, options)
-			local element = OriginalCreateKeybind(tab, options)
-			local originalOnChanged = options.OnChanged or function() end
+		self.Library.CreateKeybind = function(tab, id, options)
+			local element = OriginalCreateKeybind(tab, id, options)
+			if options and options.Callback then
+				options.Callback(element.Value)
+			end
 			element:OnChanged(function()
-				originalOnChanged(element.Value)
-				print("Keybind changed:", options.Title, element.Value)
+				print("Keybind changed (ID:", id, "):", element.Value)
 				SaveManager:AutoSave()
 			end)
 			return element
 		end
 
-		self.Library.CreateInput = function(tab, options)
-			local element = OriginalCreateInput(tab, options)
-			local originalOnChanged = options.OnChanged or function() end
+		self.Library.CreateInput = function(tab, id, options)
+			local element = OriginalCreateInput(tab, id, options)
+			if options and options.Callback then
+				options.Callback(element.Value)
+			end
 			element:OnChanged(function()
-				originalOnChanged(element.Value)
-				print("Input changed:", options.Title, element.Value)
+				print("Input changed (ID:", id, "):", element.Value)
 				SaveManager:AutoSave()
 			end)
 			return element
