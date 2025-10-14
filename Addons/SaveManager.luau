@@ -355,7 +355,7 @@ local SaveManager = {} do
 			end
 		end)
 		]]
-		SaveManager:AutoSave()
+		--SaveManager:AutoSave()
 	end
 
 	function SaveManager:BuildConfigSection(tab)
@@ -372,7 +372,7 @@ local SaveManager = {} do
 			Default = false,
 			Callback = function(value)
 				self.AutoSaveEnabled = value
-				SaveManager:AutoSave()
+				--SaveManager:AutoSave()
 			end
 		})
 
