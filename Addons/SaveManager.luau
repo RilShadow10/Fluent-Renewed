@@ -477,6 +477,18 @@ local SaveManager = {} do
 			})
 		end})
 
+		local RemoveAutoloadButton
+		RemoveAutoloadButton = section:AddButton({Title = "Remove autoload", Callback = function()
+			delfile(`{self.Folder}/settings/autoload.txt`)
+			AutoloadButton:SetDesc("Current autoload config:")
+			self.Library:Notify({
+				Title = "Interface",
+				Content = "Config loader",
+				SubContent = string.format("Removed auto load"),
+				Duration = 4
+			})
+		end})
+
 		if isfile(`{self.Folder}/settings/autoload.txt`) then
 			local name = readfile(`{self.Folder}/settings/autoload.txt`)
 			AutoloadButton:SetDesc("Current autoload config: " .. name)
