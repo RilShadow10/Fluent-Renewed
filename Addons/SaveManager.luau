@@ -250,7 +250,6 @@ local SaveManager = {} do
 	function SaveManager:SetLibrary(library)
 		self.Library = library
 		self.Options = library.Options
-		self:WrapUIElements()
 	end
 
 	function SaveManager:LoadAutoloadConfig()
@@ -372,8 +371,8 @@ local SaveManager = {} do
 			Default = false,
 			Callback = function(value)
 				self.AutoSaveEnabled = value
-				if value then
-					self:LoadAutoSaveConfig()
+				if value then			
+					self:WrapUIElements()
 					SaveManager:AutoSave()
 				end
 			end
