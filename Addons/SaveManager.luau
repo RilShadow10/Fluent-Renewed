@@ -323,7 +323,6 @@ local SaveManager = {} do
 					end
 					-- Use 'value' for Toggle/Slider/Dropdown, element.Value for others
 					local displayValue = value or element.Value
-					print("Saving on change for:", id, "Type:", element.Type, "Value:", tostring(displayValue))
 					SaveManager:AutoSave()
 				end)
 			end
@@ -364,16 +363,6 @@ local SaveManager = {} do
 
 		section:AddInput("SaveManager_ConfigName", { Title = "Config name" })
 		section:AddDropdown("SaveManager_ConfigList", { Title = "Config list", Values = self:RefreshConfigList(), AllowNull = true })
-
-		-- section:AddToggle("SaveManager_AutoSaveToggle", {
-		-- 	Title = "Enable Autosave",
-		-- 	Description = "Automatically save settings when changed",
-		-- 	Default = false,
-		-- 	Callback = function(value)
-		-- 		self.AutoSaveEnabled = value
-		-- 		--SaveManager:AutoSave()
-		-- 	end
-		-- })
 
 		section:AddButton({
 			Title = "Create config",
