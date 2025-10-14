@@ -372,7 +372,10 @@ local SaveManager = {} do
 			Default = false,
 			Callback = function(value)
 				self.AutoSaveEnabled = value
-				--SaveManager:AutoSave()
+				if value then
+					self:LoadAutoSaveConfig()
+					SaveManager:AutoSave()
+				end
 			end
 		})
 
@@ -501,8 +504,6 @@ local SaveManager = {} do
 
 		SaveManager:SetIgnoreIndexes({ "SaveManager_ConfigList", "SaveManager_ConfigName", "SaveManager_AutoSaveToggle" })
 
-		-- Load autosaved config on script execution
-		self:LoadAutoSaveConfig()
 	end
 
 	SaveManager:BuildFolderTree()
