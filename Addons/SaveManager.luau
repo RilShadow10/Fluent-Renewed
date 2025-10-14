@@ -248,13 +248,9 @@ local SaveManager = {} do
 	end
 
 	function SaveManager:SetLibrary(library)
-		print("Setting library, initializing element monitoring")
 		self.Library = library
 		self.Options = library.Options
 		self:WrapUIElements()
-		for idx, opt in self.Options do
-			print("Initial option registered:", idx, "Type:", opt.Type, "Value:", tostring(opt.Value))
-		end
 	end
 
 	function SaveManager:LoadAutoloadConfig()
@@ -309,7 +305,6 @@ local SaveManager = {} do
 	end
 
 	function SaveManager:WrapUIElements()
-		print("Initializing element monitoring for Fluent Renewed")
 		-- Function to hook OnChanged for a single element
 		local function HookElement(id, element)
 			if SaveManager.HookedElements[id] then
@@ -317,14 +312,16 @@ local SaveManager = {} do
 			end
 			if element.OnChanged then
 				SaveManager.HookedElements[id] = true
+				SaveManager.ElementFirstChange[id] = true
 				element:OnChanged(function(value)
+					if SaveManager.ElementFirstChange[id] then
+						SaveManager.ElementFirstChange[id] = false
+						return
+					end
 					-- Use 'value' for Toggle/Slider/Dropdown, element.Value for others
 					local displayValue = value or element.Value
 					SaveManager:AutoSave()
 				end)
-				print("Hooked OnChanged for element:", id, "Type:", element.Type)
-			else
-				print("No OnChanged method for element:", id, "Type:", element.Type)
 			end
 		end
 
@@ -353,6 +350,7 @@ local SaveManager = {} do
 			end
 		end)
 		]]
+		SaveManager:AutoSave()
 	end
 
 	function SaveManager:BuildConfigSection(tab)
