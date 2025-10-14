@@ -171,7 +171,6 @@ local SaveManager = {} do
 		if not success then
 			return false, "Failed to write file: " .. (err or "unknown error")
 		end
-		print("Saved to:", fullPath)
 		return true
 	end
 
@@ -317,12 +316,10 @@ local SaveManager = {} do
 				element:OnChanged(function(value)
 					if SaveManager.ElementFirstChange[id] then
 						SaveManager.ElementFirstChange[id] = false
-						print("Ignored initial OnChanged for:", id, "Type:", element.Type, "Value:", tostring(value or element.Value))
 						return
 					end
 					-- Use 'value' for Toggle/Slider/Dropdown, element.Value for others
 					local displayValue = value or element.Value
-					print("Saving on change for:", id, "Type:", element.Type, "Value:", tostring(displayValue))
 					SaveManager:AutoSave()
 				end)
 			end
