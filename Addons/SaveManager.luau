@@ -369,20 +369,7 @@ local SaveManager = {} do
 			Default = false,
 			Callback = function(value)
 				self.AutoSaveEnabled = value
-				print("Autosave enabled:", value)
-			end
-		})
-
-		section:AddButton({
-			Title = "Test Manual Save",
-			Callback = function()
-				local success, err = SaveManager:Save("test_save")
-				print("Manual save:", success and "Success" or "Failed: " .. err)
-				SaveManager.Library:Notify({
-					Title = "Test",
-					Content = success and "Saved to test_save.json" or "Failed: " .. err,
-					Duration = 5
-				})
+				SaveManager:AutoSave()
 			end
 		})
 
