@@ -52,6 +52,7 @@ local SaveManager = {} do
 	SaveManager.Options, SaveManager.Library = {} :: { [string]: {Type: string, Value: any, SetValues: (self: any, NewValue: { [any]: any }) -> nil, SetValue: (self: any, NewValue: any, ...any) -> nil, SetValueRGB: (self: any, NewValue: Color3, Transparency: number?) -> nil} }, {}
 	SaveManager.AutoSaveEnabled = false
 	SaveManager.AutoSaveConfigName = "autosave"
+	SaveManager.LastSave = 0
 	SaveManager.Parser = {
 		Toggle = {
 			Save = function(idx, object) 
@@ -294,9 +295,15 @@ local SaveManager = {} do
 	end
 
 	function SaveManager:AutoSave()
-		if not self.AutoSaveEnabled then return end
+		if not self.AutoSaveEnabled or (self.LastSave and tick() - self.LastSave < 1) then 
+			print("Autosave skipped: Disabled or debounced")
+			return 
+		end
+		self.LastSave = tick()
+		print("Attempting autosave...")
 		local success, err = self:Save(self.AutoSaveConfigName)
 		if not success then
+			print("Autosave failed:", err)
 			self.Library:Notify({
 				Title = "Interface",
 				Content = "Autosave",
@@ -304,6 +311,7 @@ local SaveManager = {} do
 				Duration = 7
 			})
 		else
+			print("Autosave successful")
 			self.Library:Notify({
 				Title = "Interface",
 				Content = "Autosave",
@@ -314,71 +322,66 @@ local SaveManager = {} do
 	end
 
 	function SaveManager:WrapUIElements()
-		local OriginalAddToggle = self.Library.AddToggle
-		local OriginalAddSlider = self.Library.AddSlider
-		local OriginalAddDropdown = self.Library.AddDropdown
-		local OriginalAddColorpicker = self.Library.AddColorpicker
-		local OriginalAddKeybind = self.Library.AddKeybind
-		local OriginalAddInput = self.Library.AddInput
+		print("Wrapping UI elements for Fluent Renewed")
+		local OriginalCreateToggle = self.Library.CreateToggle
+		local OriginalCreateSlider = self.Library.CreateSlider
+		local OriginalCreateDropdown = self.Library.CreateDropdown
+		local OriginalCreateColorpicker = self.Library.CreateColorpicker
+		local OriginalCreateKeybind = self.Library.CreateKeybind
+		local OriginalCreateInput = self.Library.CreateInput
 
-		self.Library.AddToggle = function(tab, options)
-			local originalCallback = options.Callback or function() end
-			options.Callback = function(value)
-				originalCallback(value)
-				print("yes")
+		self.Library.CreateToggle = function(tab, options)
+			local element = OriginalCreateToggle(tab, options)
+			element:OnChanged(function(value)
+				print("Toggle changed:", options.Title, value)
 				SaveManager:AutoSave()
-			end
-			return OriginalAddToggle(tab, options)
+			end)
+			return element
 		end
 
-		self.Library.AddSlider = function(tab, options)
-			local originalCallback = options.Callback or function() end
-			options.Callback = function(value)
-				originalCallback(value)
-				print("yes")
+		self.Library.CreateSlider = function(tab, options)
+			local element = OriginalCreateSlider(tab, options)
+			element:OnChanged(function(value)
+				print("Slider changed:", options.Title, value)
 				SaveManager:AutoSave()
-			end
-			return OriginalAddSlider(tab, options)
+			end)
+			return element
 		end
 
-		self.Library.AddDropdown = function(tab, options)
-			local originalCallback = options.Callback or function() end
-			options.Callback = function(value)
-				originalCallback(value)
-				print("yes")
+		self.Library.CreateDropdown = function(tab, options)
+			local element = OriginalCreateDropdown(tab, options)
+			element:OnChanged(function(value)
+				print("Dropdown changed:", options.Title, value)
 				SaveManager:AutoSave()
-			end
-			return OriginalAddDropdown(tab, options)
+			end)
+			return element
 		end
 
-		self.Library.AddColorpicker = function(tab, options)
-			local originalCallback = options.Callback or function() end
-			options.Callback = function(value, transparency)
-				originalCallback(value, transparency)
-				print("yes")
+		self.Library.CreateColorpicker = function(tab, options)
+			local element = OriginalCreateColorpicker(tab, options)
+			element:OnChanged(function()
+				print("Colorpicker changed:", options.Title, element.Value, element.Transparency)
 				SaveManager:AutoSave()
-			end
-			return OriginalAddColorpicker(tab, options)
+			end)
+			return element
 		end
 
-		self.Library.AddKeybind = function(tab, options)
-			local originalCallback = options.Callback or function() end
-			options.Callback = function(key, mode)
-				originalCallback(key, mode)
-				print("yes")
+		self.Library.CreateKeybind = function(tab, options)
+			local element = OriginalCreateKeybind(tab, options)
+			element:OnChanged(function()
+				print("Keybind changed:", options.Title, element.Value)
 				SaveManager:AutoSave()
-			end
-			return OriginalAddKeybind(tab, options)
+			end)
+			return element
 		end
 
-		self.Library.AddInput = function(tab, options)
-			local originalCallback = options.Callback or function() end
-			options.Callback = function(text)
-				originalCallback(text)
-				print("yes")
+		self.Library.CreateInput = function(tab, options)
+			local element = OriginalCreateInput(tab, options)
+			element:OnChanged(function()
+				print("Input changed:", options.Title, element.Value)
 				SaveManager:AutoSave()
-			end
-			return OriginalAddInput(tab, options)
+			end)
+			return element
 		end
 	end
 
@@ -387,7 +390,7 @@ local SaveManager = {} do
 
 		local section = tab:AddSection("Configuration")
 
-		section:AddInput("SaveManager_ConfigName",    { Title = "Config name" })
+		section:AddInput("SaveManager_ConfigName", { Title = "Config name" })
 		section:AddDropdown("SaveManager_ConfigList", { Title = "Config list", Values = self:RefreshConfigList(), AllowNull = true })
 
 		section:AddToggle("SaveManager_AutoSaveToggle", {
@@ -396,6 +399,7 @@ local SaveManager = {} do
 			Default = false,
 			Callback = function(value)
 				self.AutoSaveEnabled = value
+				print("Autosave enabled:", value)
 			end
 		})
 
