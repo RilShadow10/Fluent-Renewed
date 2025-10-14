@@ -51,7 +51,6 @@ local SaveManager = {} do
 	SaveManager.Ignore = {}
 	SaveManager.Options, SaveManager.Library = {} :: { [string]: {Type: string, Value: any, SetValues: (self: any, NewValue: { [any]: any }) -> nil, SetValue: (self: any, NewValue: any, ...any) -> nil, SetValueRGB: (self: any, NewValue: Color3, Transparency: number?) -> nil} }, {}
 	SaveManager.AutoSaveEnabled = false
-	SaveManager.AutoSaveInterval = 30 -- Seconds between autosaves
 	SaveManager.AutoSaveConfigName = "autosave"
 	SaveManager.Parser = {
 		Toggle = {
@@ -244,6 +243,7 @@ local SaveManager = {} do
 	function SaveManager:SetLibrary(library)
 		self.Library = library
 		self.Options = library.Options
+		self:WrapUIElements()
 	end
 
 	function SaveManager:LoadAutoloadConfig()
@@ -271,30 +271,6 @@ local SaveManager = {} do
 		return nil
 	end
 
-	function SaveManager:StartAutoSave()
-		if not self.AutoSaveEnabled then return end
-		task.spawn(function()
-			while self.AutoSaveEnabled and task.wait(self.AutoSaveInterval) do
-				local success, err = self:Save(self.AutoSaveConfigName)
-				if not success then
-					self.Library:Notify({
-						Title = "Interface",
-						Content = "Autosave",
-						SubContent = `Failed to autosave: {err}`,
-						Duration = 7
-					})
-				else
-					self.Library:Notify({
-						Title = "Interface",
-						Content = "Autosave",
-						SubContent = "Settings autosaved",
-						Duration = 3
-					})
-				end
-			end
-		end)
-	end
-
 	function SaveManager:LoadAutoSaveConfig()
 		local file = `{self.Folder}/settings/{self.AutoSaveConfigName}.json`
 		if isfile(file) then
@@ -317,6 +293,89 @@ local SaveManager = {} do
 		end
 	end
 
+	function SaveManager:AutoSave()
+		if not self.AutoSaveEnabled then return end
+		local success, err = self:Save(self.AutoSaveConfigName)
+		if not success then
+			self.Library:Notify({
+				Title = "Interface",
+				Content = "Autosave",
+				SubContent = `Failed to autosave: {err}`,
+				Duration = 7
+			})
+		else
+			self.Library:Notify({
+				Title = "Interface",
+				Content = "Autosave",
+				SubContent = "Settings autosaved",
+				Duration = 3
+			})
+		end
+	end
+
+	function SaveManager:WrapUIElements()
+		local OriginalAddToggle = self.Library.AddToggle
+		local OriginalAddSlider = self.Library.AddSlider
+		local OriginalAddDropdown = self.Library.AddDropdown
+		local OriginalAddColorpicker = self.Library.AddColorpicker
+		local OriginalAddKeybind = self.Library.AddKeybind
+		local OriginalAddInput = self.Library.AddInput
+
+		self.Library.AddToggle = function(tab, options)
+			local originalCallback = options.Callback or function() end
+			options.Callback = function(value)
+				originalCallback(value)
+				SaveManager:AutoSave()
+			end
+			return OriginalAddToggle(tab, options)
+		end
+
+		self.Library.AddSlider = function(tab, options)
+			local originalCallback = options.Callback or function() end
+			options.Callback = function(value)
+				originalCallback(value)
+				SaveManager:AutoSave()
+			end
+			return OriginalAddSlider(tab, options)
+		end
+
+		self.Library.AddDropdown = function(tab, options)
+			local originalCallback = options.Callback or function() end
+			options.Callback = function(value)
+				originalCallback(value)
+				SaveManager:AutoSave()
+			end
+			return OriginalAddDropdown(tab, options)
+		end
+
+		self.Library.AddColorpicker = function(tab, options)
+			local originalCallback = options.Callback or function() end
+			options.Callback = function(value, transparency)
+				originalCallback(value, transparency)
+				SaveManager:AutoSave()
+			end
+			return OriginalAddColorpicker(tab, options)
+		end
+
+		self.Library.AddKeybind = function(tab, options)
+			local originalCallback = options.Callback or function() end
+			options.Callback = function(key, mode)
+				originalCallback(key, mode)
+				SaveManager:AutoSave()
+			end
+			return OriginalAddKeybind(tab, options)
+		end
+
+		self.Library.AddInput = function(tab, options)
+			local originalCallback = options.Callback or function() end
+			options.Callback = function(text)
+				originalCallback(text)
+				SaveManager:AutoSave()
+			end
+			return OriginalAddInput(tab, options)
+		end
+	end
+
 	function SaveManager:BuildConfigSection(tab)
 		assert(self.Library, "Must set SaveManager.Library")
 
@@ -327,13 +386,10 @@ local SaveManager = {} do
 
 		section:AddToggle("SaveManager_AutoSaveToggle", {
 			Title = "Enable Autosave",
-			Description = "Automatically save settings every " .. self.AutoSaveInterval .. " seconds",
+			Description = "Automatically save settings when changed",
 			Default = false,
 			Callback = function(value)
 				self.AutoSaveEnabled = value
-				if value then
-					self:StartAutoSave()
-				end
 			end
 		})
 
@@ -432,18 +488,6 @@ local SaveManager = {} do
 				Content = "Config loader",
 				SubContent = string.format("Set %q to auto load", name),
 				Duration = 7
-			})
-		end})
-
-        local RemoveAutoloadButton
-		RemoveAutoloadButton = section:AddButton({Title = "Remove autoload", Callback = function()
-			delfile(`{self.Folder}/settings/autoload.txt`)
-			AutoloadButton:SetDesc("Current autoload config:")
-			self.Library:Notify({
-				Title = "Interface",
-				Content = "Config loader",
-				SubContent = string.format("Removed auto load"),
-				Duration = 4
 			})
 		end})
 
