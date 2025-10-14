@@ -312,10 +312,10 @@ local SaveManager = {} do
 			end
 			if element.OnChanged then
 				SaveManager.HookedElements[id] = true
-				SaveManager.ElementFirstChange[id] = true
+				SaveManager.ElementFirstChange[id] = 1
 				element:OnChanged(function(value)
-					if SaveManager.ElementFirstChange[id] then
-						SaveManager.ElementFirstChange[id] = false
+					if SaveManager.ElementFirstChange[id] == 1 then
+						SaveManager.ElementFirstChange[id] = 2
 						return
 					end
 					-- Use 'value' for Toggle/Slider/Dropdown, element.Value for others
