@@ -310,10 +310,6 @@ local SaveManager = {} do
 			if SaveManager.HookedElements[id] then
 				return -- Already hooked
 			end
-			if element.Type == "ButtonLabel" then
-				print("Skipped hooking ButtonLabel:", id)
-				return
-			end
 			if element.OnChanged then
 				SaveManager.HookedElements[id] = true
 				SaveManager.ElementFirstChange[id] = true
