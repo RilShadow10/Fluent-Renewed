@@ -322,6 +322,7 @@ local SaveManager = {} do
 					end
 					-- Use 'value' for Toggle/Slider/Dropdown, element.Value for others
 					local displayValue = value or element.Value
+					print("Saving on change for:", id, "Type:", element.Type, "Value:", tostring(displayValue))
 					SaveManager:AutoSave()
 				end)
 			end
