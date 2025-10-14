@@ -53,6 +53,7 @@ local SaveManager = {} do
 	SaveManager.AutoSaveEnabled = false
 	SaveManager.AutoSaveConfigName = "autosave"
 	SaveManager.LastSave = 0
+	SaveManager.HookedElements = {} -- Track hooked elements to avoid duplicates
 	SaveManager.Parser = {
 		Toggle = {
 			Save = function(idx, object) 
@@ -162,7 +163,7 @@ local SaveManager = {} do
 
 		local success, encoded = pcall(httpService.JSONEncode, httpService, data)
 		if not success then
-			return false, "Failed to JSON-Encode data"
+			return false, "Failed to JSON-Encode data: " .. tostring(encoded)
 		end
 
 		local success, err = pcall(writefile, fullPath, encoded)
@@ -182,7 +183,7 @@ local SaveManager = {} do
 		if not isfile(file) then return false, "invalid file" end
 
 		local success, decoded = pcall(httpService.JSONDecode, httpService, readfile(file))
-		if not success then return false, "decode error" end
+		if not success then return false, "decode error: " .. tostring(decoded) end
 
 		for _, option in next, decoded.objects do
 			if self.Parser[option.type] then
@@ -247,12 +248,12 @@ local SaveManager = {} do
 	end
 
 	function SaveManager:SetLibrary(library)
-		print("Setting library, wrapping UI elements")
+		print("Setting library, initializing element monitoring")
 		self.Library = library
 		self.Options = library.Options
 		self:WrapUIElements()
 		for idx, opt in self.Options do
-			print("Option registered:", idx, "Type:", opt.Type, "Value:", tostring(opt.Value))
+			print("Initial option registered:", idx, "Type:", opt.Type, "Value:", tostring(opt.Value))
 		end
 	end
 
@@ -331,99 +332,49 @@ local SaveManager = {} do
 	end
 
 	function SaveManager:WrapUIElements()
-		print("Wrapping UI elements for Fluent Renewed")
-		local OriginalCreateWindow = self.Library.CreateWindow
-
-		self.Library.CreateWindow = function(...)
-			local window = OriginalCreateWindow(...)
-			local OriginalCreateTab = window.CreateTab
-
-			window.CreateTab = function(...)
-				local tab = OriginalCreateTab(...)
-				local OriginalCreateToggle = tab.CreateToggle
-				local OriginalCreateSlider = tab.CreateSlider
-				local OriginalCreateDropdown = tab.CreateDropdown
-				local OriginalCreateColorpicker = tab.CreateColorpicker
-				local OriginalCreateKeybind = tab.CreateKeybind
-				local OriginalCreateInput = tab.CreateInput
-
-				tab.CreateToggle = function(id, options)
-					local element = OriginalCreateToggle(id, options)
-					if options.Callback then
-						task.spawn(options.Callback, element.Value)
-					end
-					element:OnChanged(function(value)
-						print("Toggle changed (ID:", id, "):", tostring(value))
-						SaveManager:AutoSave()
-					end)
-					return element
-				end
-
-				tab.CreateSlider = function(id, options)
-					local element = OriginalCreateSlider(id, options)
-					if options.Callback then
-						task.spawn(options.Callback, element.Value)
-					end
-					element:OnChanged(function(value)
-						print("Slider changed (ID:", id, "):", tostring(value))
-						SaveManager:AutoSave()
-					end)
-					return element
-				end
-
-				tab.CreateDropdown = function(id, options)
-					local element = OriginalCreateDropdown(id, options)
-					if options.Callback then
-						task.spawn(options.Callback, element.Value)
-					end
-					element:OnChanged(function(value)
-						print("Dropdown changed (ID:", id, "):", tostring(value))
-						SaveManager:AutoSave()
-					end)
-					return element
-				end
-
-				tab.CreateColorpicker = function(id, options)
-					local element = OriginalCreateColorpicker(id, options)
-					if options.Callback then
-						task.spawn(options.Callback, element.Value, element.Transparency)
-					end
-					element:OnChanged(function()
-						print("Colorpicker changed (ID:", id, "):", tostring(element.Value), element.Transparency)
-						SaveManager:AutoSave()
-					end)
-					return element
-				end
-
-				tab.CreateKeybind = function(id, options)
-					local element = OriginalCreateKeybind(id, options)
-					if options.Callback then
-						task.spawn(options.Callback, element.Value)
-					end
-					element:OnChanged(function()
-						print("Keybind changed (ID:", id, "):", tostring(element.Value))
-						SaveManager:AutoSave()
-					end)
-					return element
-				end
-
-				tab.CreateInput = function(id, options)
-					local element = OriginalCreateInput(id, options)
-					if options.Callback then
-						task.spawn(options.Callback, element.Value)
-					end
-					element:OnChanged(function()
-						print("Input changed (ID:", id, "):", tostring(element.Value))
-						SaveManager:AutoSave()
-					end)
-					return element
-				end
-
-				return tab
+		print("Initializing element monitoring for Fluent Renewed")
+		-- Function to hook OnChanged for a single element
+		local function HookElement(id, element)
+			if SaveManager.HookedElements[id] then
+				return -- Already hooked
 			end
-
-			return window
+			if element.OnChanged then
+				SaveManager.HookedElements[id] = true
+				element:OnChanged(function(value)
+					-- Use 'value' for Toggle/Slider/Dropdown, element.Value for others
+					local displayValue = value or element.Value
+					print("Element changed (ID:", id, "Type:", element.Type, "):", tostring(displayValue))
+					SaveManager:AutoSave()
+				end)
+				print("Hooked OnChanged for element:", id, "Type:", element.Type)
+			else
+				print("No OnChanged method for element:", id, "Type:", element.Type)
+			end
 		end
+
+		-- Initial hook for existing elements
+		for id, element in self.Options do
+			HookElement(id, element)
+		end
+
+		-- Monitor for new elements (polling approach)
+		task.spawn(function()
+			local lastCount = 0
+			while true do
+				local currentCount = 0
+				for id, element in self.Options do
+					currentCount += 1
+					if not SaveManager.HookedElements[id] then
+						HookElement(id, element)
+					end
+				end
+				if currentCount ~= lastCount then
+					print("Detected", currentCount, "elements in Library.Options")
+					lastCount = currentCount
+				end
+				task.wait(0.1) -- Poll every 0.1 seconds
+			end
+		end)
 	end
 
 	function SaveManager:BuildConfigSection(tab)
