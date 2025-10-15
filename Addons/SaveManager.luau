@@ -473,7 +473,6 @@ local SaveManager = {} do
 		local RemoveAutoloadButton
 		RemoveAutoloadButton = section:AddButton({Title = "Remove autoload", Callback = function()
 			delfile(`{self.Folder}/settings/autoload.txt`)
-    		self:WrapUIElements()
 			AutoloadButton:SetDesc("Current autoload config:")
 			self.Library:Notify({
 				Title = "Interface",
